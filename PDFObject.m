@@ -17,6 +17,8 @@
 #import "PDFObjectReference.h"
 #import "PDFStreamDecoder.h"
 #import "Utils.h"
+#include "pdf.h"
+
 
 @implementation PDFObject
 {
@@ -32,6 +34,9 @@
 - (id)initWithData :(NSData*)d first:(NSInteger*)first second:(NSInteger*)second 
 {
     if (self = [super init]) {
+
+        //NSLog(@"hhm: ===========\n%s\n----------------------", d.bytes);
+        
         rawData = (const char *)[d bytes];
         dataLength = d.length;
         //pdfContents = documentContents;
@@ -64,7 +69,7 @@
         }
     }
     index = &i;
-    NSLog(@"%@",contents);
+    //NSLog(@"%@",contents);
 }
 
 - (NSObject *)checkNextStruct:(NSUInteger *)idx
@@ -192,7 +197,7 @@
     }
     
     *idx = i;
-   // NSLog(@"boooool %@",str);
+    // NSLog(@"boooool %@",str);
     return b;
 }
 
@@ -340,7 +345,47 @@
             return nil; //error
         }
         i += 5;
-        b = &rawData[i];
+        b = &rawData[i+2];
+    }
+    
+    const char* e = NULL;
+    for(; i < dataLength; ++i) {
+        if (rawData[i] == 'e' && rawData[i-1] != '/' && i+8 < dataLength) {
+            char buffer[] = {rawData[i], rawData[i+1], rawData[i+2], rawData[i+3], rawData[i+4], rawData[i+5], rawData[i+6], rawData[i+7], rawData[i+8], 0};
+            if ([@(buffer)isEqualToString:@"endstream"]){
+                e = &rawData[i-1];
+                break;
+            }
+        }
+    }
+    
+    NSMutableData *data = [NSData dataWithBytes:b length:e - b];
+    //stream = (NSData *)data;
+    printf("\n\nB--------\n");
+    
+    //dumpCharArray(data.bytes, data.length);
+    NSString * found = convertStream(data);
+    //printf(@"string: %s",found);
+    printf("\nE--------\n\n");
+
+    i += 8;
+    *idx = i;
+    
+    return data;
+}
+
+- (NSData *)checkStreamWorking:(NSUInteger *)idx
+{
+    NSUInteger i = *idx;
+    
+    const char *b = NULL;
+    if (i+5 < dataLength) {
+        char buffer[] = {rawData[i], rawData[i+1], rawData[i+2], rawData[i+3], rawData[i+4], rawData[i+5],0};
+        if (![@(buffer)isEqualToString:@"stream"]){
+            return nil; //error
+        }
+        i += 5;
+        b = &rawData[i-10];
     }
     
     const char* e = NULL;
@@ -354,8 +399,11 @@
         }
     }
     
-    NSMutableData *data = [NSData dataWithBytes:b length:e - b];
+    NSMutableData *data = [NSData dataWithBytes:b length:e - b + 20];
     stream = (NSData *)data;
+    //NSLog(@"stream: %s",data.bytes);
+    NSString * found = findAndConvertStream(data);
+    //NSLog(@"string: %s",found);
     
     i += 8;
     *idx = i;

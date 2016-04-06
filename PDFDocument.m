@@ -36,6 +36,7 @@ const char* strblock(const char* p, int(^func)(char ch))
 - (id)initWithData:(NSData*)data
 {
     if (self = [super init]) {
+        
         _version = @"";
         contents = [[NSMutableDictionary alloc] init];
         char *buffer = malloc(data.length + 1);
@@ -43,9 +44,11 @@ const char* strblock(const char* p, int(^func)(char ch))
         buffer[data.length] = 0;
         NSData *dataWithNull = [NSData dataWithBytes:buffer length:data.length + 1];
         free(buffer);
-        
+
         [self parseData:dataWithNull];
         [self linkObjectsWithContents];
+        
+        
         
         return self;
     }
@@ -223,7 +226,6 @@ const char* strblock(const char* p, int(^func)(char ch))
 {
     const char *rawData = (const char*)[data bytes];
     NSUInteger dataLength = data.length;
-   // NSMutableDictionary *dict = [[NSMutableDictionary alloc] init];
     
     NSUInteger i = *idx;
     NSString *firstObjNum = @"";
@@ -269,16 +271,22 @@ const char* strblock(const char* p, int(^func)(char ch))
     }
     
     skipBlankSymbols(rawData, &i);
-    NSString *objBodyStr = NULL;
+    NSData *objectData = NULL;
     
     if(objBodyEnd - objBodyBegin > 0) {
-        NSData *objectData = [NSData dataWithBytes:objBodyBegin length:objBodyEnd - objBodyBegin];
-        objBodyStr = [[NSString alloc] initWithData:objectData encoding:NSASCIIStringEncoding];
+        objectData = [NSData dataWithBytes:objBodyBegin length:objBodyEnd - objBodyBegin];
+    }
+
+    NSString * objBodyStr = [[NSString alloc] initWithData:objectData encoding:NSASCIIStringEncoding];
+    if ([objBodyStr rangeOfString:@"FlateDecode"].location == NSNotFound) {
+    } else {
+        
+        //NSLog(@"\n\nB--------\n\n");
+        //dumpCharArray(objectData.bytes, objectData.length);
+        //printf("\n\nE--------\n\n");
     }
     
-    NSData *d = [objBodyStr dataUsingEncoding:NSUTF8StringEncoding];
-    PDFObject *p = [[PDFObject alloc] initWithData:d first:&first second:&second];
-    
+    PDFObject *p = [[PDFObject alloc] initWithData:objectData first:&first second:&second];
     [contents setObject:p forKey:[p getObjectNumber]];
 
     *idx = i;
@@ -335,7 +343,7 @@ const char* strblock(const char* p, int(^func)(char ch))
     
     NSData *trailerData = [NSData dataWithBytes:trailerBegin length:trailerEnd - trailerBegin];
     
-    NSLog(@"Xref: %@ \r Trailer: %@", xrefData, trailerData);
+    //NSLog(@"Xref: %@ \r Trailer: %@", xrefData, trailerData);
     
     skipBlankSymbols(rawData, &i);
     
